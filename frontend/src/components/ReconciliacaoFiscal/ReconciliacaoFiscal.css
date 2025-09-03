@@ -1,0 +1,166 @@
+.recon-container {
+  padding: 2rem;
+  font-family: sans-serif;
+}
+
+.upload-section-horizontal {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin: 2rem 0;
+  justify-content: center;
+}
+
+.upload-box {
+  border: 2px dashed #2563eb;
+  padding: 1.5rem;
+  border-radius: 10px;
+  width: 300px;
+  text-align: center;
+  background-color: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+.upload-box:hover {
+  background-color: #eef2ff;
+}
+
+.upload-box label {
+  font-weight: bold;
+  margin-bottom: 1rem;
+  display: block;
+  font-size: 1.1rem;
+}
+
+.upload-box input[type="file"] {
+  position: absolute;
+  opacity: 0;
+  height: 100%;
+  width: 100%;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+}
+
+.hint {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+
+.btn-secundario {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  font-size: 1rem;
+}
+
+.upload-section-horizontal {
+  display: flex;
+  gap: 2rem;
+  margin-top: 1rem;
+}
+
+.upload-box {
+  flex: 1;
+  border: 2px dashed #2563eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  background-color: #f9fafb;
+}
+
+.upload-box input[type="file"] {
+  display: none;
+}
+
+.upload-box label {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.hint {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.resultados {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f5f5f5;
+  border-radius: 10px;
+}
+
+.resultados h3 {
+  margin-top: 10px;
+  color: #333;
+}
+
+.resultados ul {
+  list-style-type: none;
+  padding: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.resultados li {
+  padding: 6px 10px;
+  border-bottom: 1px solid #ddd;
+  font-size: 14px;
+}
+
+.resultados {
+  margin-top: 2rem;
+  padding: 1rem;
+  border-radius: 10px;
+  background: #f9f9f9;
+}
+
+.resultados h3 {
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+  border-bottom: 2px solid #ddd;
+  padding-bottom: 4px;
+}
+
+.resultado-card {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.resultado-card strong {
+  color: #444;
+}
+
+.resultado-card small {
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.grafico-resumo {
+  margin-top: 40px;
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+}
