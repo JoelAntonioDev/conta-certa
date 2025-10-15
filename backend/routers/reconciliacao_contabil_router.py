@@ -15,7 +15,7 @@ async def upload_ficheiros_contabeis(
 ):
    
     try:
-        empresa_id = 3  # ← virá do token futuramente
+        empresa_id = 1  # ← virá do token futuramente
         resultado = await processar_contabil(
             banco=banco,
             modelo=modelo,

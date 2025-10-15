@@ -31,20 +31,23 @@ async def receber_licenca(
         raise HTTPException(status_code=400, detail="Formato inválido de arquivo")
 
     conteudo = await file.read()
-
+    print("Conteúdo recebido:",conteudo.decode())
     try:
         licenca_data = json.loads(conteudo.decode())
     except Exception:
         raise HTTPException(status_code=400, detail="Licença não é JSON válido")
-
+    print("chegou1")
     assinatura_b64 = licenca_data.pop("assinatura", None)
     if not assinatura_b64:
         raise HTTPException(status_code=400, detail="Licença não contém assinatura")
-
+    print("chegou2")
     try:
         assinatura = base64.b64decode(assinatura_b64)
+        # Serializar COMPACTO (sem espaços, sem sort_keys!)
         data_bytes = json.dumps(licenca_data, separators=(",", ":")).encode()
+
         chave_publica = carregar_chave_publica()
+        print("Bytes para verificação:", data_bytes.decode())
 
         chave_publica.verify(
             assinatura,
@@ -52,6 +55,7 @@ async def receber_licenca(
             padding.PKCS1v15(),
             hashes.SHA256()
         )
+
 
         # ✅ Atualizar a validade no banco
         empresa = db.query(Empresa).filter(Empresa.nif == licenca_data["nif"]).first()
@@ -70,8 +74,9 @@ async def receber_licenca(
             "msg": "Licença válida ✅ e salva com sucesso.",
             "dados": licenca_data
         }
-
+    
     except Exception as e:
+        print("chegou3")
         raise HTTPException(status_code=400, detail=f"Assinatura inválida: {str(e)}")
 @router.get("/status")
 def verificar_licenca():

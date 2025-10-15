@@ -110,7 +110,7 @@ def salvar_movimentacoes(db: Session, df: pd.DataFrame):
     df.columns = df.columns.str.strip().str.lower()
 
     for _, row in df.iterrows():
-        mov = MovimentacaoBAI(
+        """mov = MovimentacaoBAI(
             data_mov=normalizar_data(row.get("data mov.", "")),
             data_valor=normalizar_data(row.get("data valor", "")),
             descritivo=normalizar_texto(row.get("descritivo", "")),
@@ -118,7 +118,7 @@ def salvar_movimentacoes(db: Session, df: pd.DataFrame):
             credito=normalizar_valor(row.get("crédito", "")),
             saldo=normalizar_valor(row.get("movimento", ""))
         )
-        db.add(mov)
+        db.add(mov)"""
     db.commit()
 
 def salvar_movimentacoes_contabilidade(db: Session, df: pd.DataFrame):

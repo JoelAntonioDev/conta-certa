@@ -14,7 +14,7 @@ async def upload_ficheiros(
 ):
     try:
         # Substituir por empresa do token futuramente
-        empresa_id = 3
+        empresa_id = 1
         resultado = await processar_ficheiros(fornecedores, retencao, db, empresa_id)
         return {"msg": "Ficheiros processados com sucesso", "dados": resultado}
     except Exception as e:
@@ -23,7 +23,7 @@ async def upload_ficheiros(
 
 @router.post("/reconciliar")
 def reconciliar(
-    empresa_id: int = 3,  # Simulado, depois virá do token
+    empresa_id: int = 1,  # Simulado, depois virá do token
     periodo: str = "2025-01",  # Futuramente dinâmico
     db: Session = Depends(get_db),
 ):

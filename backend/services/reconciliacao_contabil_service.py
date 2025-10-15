@@ -8,6 +8,9 @@ import pandas as pd
 from difflib import SequenceMatcher
 from models.user_model import MovimentacaoBAI, MovimentacaoContabilidade
 from datetime import datetime
+from models.user_model import ExecucaoReconciliacao
+from utils.relatorios import gerar_pdf_conciliacao, gerar_excel_conciliacao
+from utils.conciliacao import conciliar_movimentos_db
 
 async def salvar_arquivo(upload: UploadFile, destino: str):
     os.makedirs(os.path.dirname(destino), exist_ok=True)
@@ -15,7 +18,15 @@ async def salvar_arquivo(upload: UploadFile, destino: str):
         shutil.copyfileobj(upload.file, f)
     return destino
 
-async def processar_contabil(banco: str, modelo: str, extrato_file: UploadFile, contabilidade_file: UploadFile, db: Session, empresa_id: int):
+
+async def processar_contabil(
+    banco: str,
+    modelo: str,
+    extrato_file: UploadFile,
+    contabilidade_file: UploadFile,
+    db: Session,
+    empresa_id: int
+):
     try:
         extrato_path = f"uploads/contabil/{empresa_id}_extrato.{extrato_file.filename.split('.')[-1]}"
         contab_path = f"uploads/contabil/{empresa_id}_contabilidade.{contabilidade_file.filename.split('.')[-1]}"
@@ -24,8 +35,9 @@ async def processar_contabil(banco: str, modelo: str, extrato_file: UploadFile, 
         await salvar_arquivo(contabilidade_file, contab_path)
         print("salvou e não extraiu")
 
+        # Extrair dados
         if banco == "bfa":
-            dados_extrato = None  # ajustar conforme necessidade
+            dados_extrato = None
         elif banco == "bai":
             dados_extrato = extrair_dados_bai(extrato_path)
         else:
@@ -33,124 +45,102 @@ async def processar_contabil(banco: str, modelo: str, extrato_file: UploadFile, 
 
         print("extraiu extrato")
 
+        if dados_extrato is not None:
+            palavras_ignoradas = {"SALDO INICIAL", "SALDO FINAL", "TRANSPORTE", "A TRANSPORTAR"}
+            def linha_valida_df(row) -> bool:
+                valores = " ".join(str(v).upper() for v in row if v is not None)
+                return not any(p in valores for p in palavras_ignoradas)
+            dados_extrato = dados_extrato[dados_extrato.apply(linha_valida_df, axis=1)]
+
         dados_contabilidade = extrair_dados_contabilidade(contab_path)
         print("extraiu contabilidade")
 
-        # Convertendo para JSON serializável
+        # Criar execução
+        execucao = ExecucaoReconciliacao(empresa_id=empresa_id)
+        db.add(execucao)
+        db.commit()
+        db.refresh(execucao)
+
+        # Salvar movimentos
+        salvar_movimentacoes_extrato(db, dados_extrato, empresa_id, execucao.id)
+        salvar_movimentacoes_contabilidade(db, dados_contabilidade, empresa_id, execucao.id)
+
+        # JSON serializável
         extrato_json = dados_extrato.fillna("").to_dict(orient="records") if dados_extrato is not None else []
         contabilidade_json = dados_contabilidade.fillna("").to_dict(orient="records") if dados_contabilidade is not None else []
 
-        conciliacao = conciliar_movimentos_db(db, 3)
+        conciliacao = conciliar_movimentos_db(db, execucao.id)
 
-        return {
+        summary = {
+            "total_extrato": len(extrato_json),
+            "total_contabilidade": len(contabilidade_json),
+            "conciliados": len(conciliacao.get("conciliados", [])),
+            "somente_extrato": len(conciliacao.get("somente_extrato", [])),
+            "somente_contabilidade": len(conciliacao.get("somente_contabilidade", [])),
+        }
+
+        resultado = {
             "extrato": extrato_json,
             "contabilidade": contabilidade_json,
-            "conciliacao": conciliacao
+            "conciliacao": conciliacao,
+            "summary": summary
         }
+
+        # 🔹 Geração automática dos relatórios
+        pasta = "uploads/relatorios"
+        os.makedirs(pasta, exist_ok=True)
+        caminho_pdf = os.path.join(pasta, f"relatorio_{execucao.id}.pdf")
+        caminho_excel = os.path.join(pasta, f"relatorio_{execucao.id}.xlsx")
+
+        gerar_pdf_conciliacao(db, execucao.id, caminho_pdf)
+        gerar_excel_conciliacao(db, execucao.id, caminho_excel)
+
+        return resultado
+
     except Exception as e:
         import traceback
         print("Erro em processar_contabil:", e)
         traceback.print_exc()
 
-def conciliar_movimentos_db(db: Session, valor_tolerancia: float = 0.01, descricao_sim_threshold: float = 0.6):
-    extrato = db.query(MovimentacaoBAI).all()
-    contab = db.query(MovimentacaoContabilidade).all()
 
-    def format_data(d):
-        if not d:
-            return None
-        if isinstance(d, datetime):
-            return d.strftime('%Y-%m-%d')
-        for fmt in ('%Y-%m-%d', '%d/%m/%Y'):
-            try:
-                return datetime.strptime(d, fmt).strftime('%Y-%m-%d')
-            except:
-                pass
-        return d
+def salvar_movimentacoes_extrato(db: Session, df: pd.DataFrame, empresa_id: int, execucao_id: int):
+    """Salva no banco os movimentos do extrato ligados a uma execução específica."""
+    for _, row in df.iterrows():
+        mov = MovimentacaoBAI(
+            empresa_id=empresa_id,
+            execucao_id=execucao_id,
+            data_mov=row.get("data mov.") or row.get("data_mov"),
+            data_valor=row.get("data valor") or row.get("data_valor"),
+            descritivo=row.get("descritivo"),
+            debito=_parse_float(row.get("débito") or row.get("debito")),
+            credito=_parse_float(row.get("crédito") or row.get("credito")),
+            saldo=_parse_float(row.get("movimento") or row.get("saldo_disponivel")),
+        )
+        db.add(mov)
+    db.commit()
 
-    def to_dict_list(registros):
-        return [{
-            'id': r.id,
-            'data_mov': format_data(r.data_mov),
-            'data_valor': format_data(r.data_valor),
-            'descritivo': (r.descritivo or "").upper().strip(),
-            'debito': float(r.debito or 0),
-            'credito': float(r.credito or 0),
-            'saldo': float(r.saldo or 0)
-        } for r in registros]
+def salvar_movimentacoes_contabilidade(db: Session, df: pd.DataFrame, empresa_id: int, execucao_id: int):
+    """Salva no banco os movimentos da contabilidade ligados a uma execução específica."""
+    for _, row in df.iterrows():
+        mov = MovimentacaoContabilidade(
+            empresa_id=empresa_id,
+            execucao_id=execucao_id,
+            data_mov=row.get("data_movimento"),
+            data_valor=row.get("data_valor"),
+            numero_operacao=str(row.get("numero_operacao")),
+            descritivo=row.get("descritivo"),
+            debito=_parse_float(row.get("debito")),
+            credito=_parse_float(row.get("credito")),
+            saldo=_parse_float(row.get("saldo_disponivel")),
+        )
+        db.add(mov)
+    db.commit()
 
-    extrato_list = to_dict_list(extrato)
-    contab_list = to_dict_list(contab)
-
-    for r in extrato_list:
-        r['valor_liq'] = r['credito'] - r['debito']
-    for r in contab_list:
-        r['valor_liq'] = r['credito'] - r['debito']
-
-    usados_contab = set()
-    conciliados = []
-
-    def similaridade_desc(a, b):
-        return SequenceMatcher(None, a, b).ratio() if a and b else 0
-
-    for ext in extrato_list:
-        melhor_match = None
-        melhor_pontuacao = -1
-
-        for idx_cont, cont in enumerate(contab_list):
-            if idx_cont in usados_contab:
-                continue
-
-            diff_valor = abs(ext['valor_liq'] - cont['valor_liq'])
-            if diff_valor > valor_tolerancia:
-                continue
-
-            datas_iguais = ext['data_mov'] == cont['data_mov'] or ext['data_valor'] == cont['data_valor']
-            if not datas_iguais:
-                continue
-
-            sim_desc = similaridade_desc(ext['descritivo'], cont['descritivo'])
-            if sim_desc < descricao_sim_threshold:
-                continue
-
-            pontuacao = (1 - diff_valor) + sim_desc
-            if pontuacao > melhor_pontuacao:
-                melhor_pontuacao = pontuacao
-                melhor_match = idx_cont
-
-        if melhor_match is not None:
-            cont = contab_list[melhor_match]
-            status = 'conciliado' if abs(ext['valor_liq'] - cont['valor_liq']) <= valor_tolerancia else 'diferença'
-            conciliados.append({
-                'extrato_id': ext['id'],
-                'contabilidade_id': cont['id'],
-                'extrato_descritivo': ext['descritivo'],
-                'contab_descritivo': cont['descritivo'],
-                'extrato_data_mov': ext['data_mov'],
-                'contab_data_mov': cont['data_mov'],
-                'extrato_data_valor': ext['data_valor'],
-                'contab_data_valor': cont['data_valor'],
-                'extrato_valor_liq': ext['valor_liq'],
-                'contab_valor_liq': cont['valor_liq'],
-                'status': status
-            })
-            usados_contab.add(melhor_match)
-
-    usados_extrato_ids = {c['extrato_id'] for c in conciliados}
-    usados_contab_ids = {c['contabilidade_id'] for c in conciliados}
-
-    somente_extrato = [r for r in extrato_list if r['id'] not in usados_extrato_ids]
-    somente_contab = [r for r in contab_list if r['id'] not in usados_contab_ids]
-
-    return {
-        'conciliados': conciliados,
-        'somente_extrato': somente_extrato,
-        'somente_contabilidade': somente_contab,
-        'summary': {
-            'total_extrato': len(extrato_list),
-            'total_contabilidade': len(contab_list),
-            'conciliados': len(conciliados),
-            'somente_extrato': len(somente_extrato),
-            'somente_contabilidade': len(somente_contab)
-        }
-    }
+def _parse_float(value):
+    """Converte valores em float de forma segura."""
+    if value in (None, "", "NaN"):
+        return 0.0
+    try:
+        return float(str(value).replace(",", ".").replace(" ", ""))
+    except:
+        return 0.0

@@ -238,23 +238,23 @@ const ReconCiliacaoContabil = () => {
               {[
                 {
                   label: "Total Extrato",
-                  value: conciliacao.summary?.total_extrato ?? 0,
+                  value: resultado.summary?.total_extrato ?? 0,
                 },
                 {
                   label: "Total Contabilidade",
-                  value: conciliacao.summary?.total_contabilidade ?? 0,
+                  value: resultado.summary?.total_contabilidade ?? 0,
                 },
                 {
                   label: "Conciliados",
-                  value: conciliacao.summary?.conciliados ?? 0,
+                  value: resultado.summary?.conciliados ?? 0,
                 },
                 {
                   label: "Somente no Extrato",
-                  value: conciliacao.summary?.somente_extrato ?? 0,
+                  value: resultado.summary?.somente_extrato ?? 0,
                 },
                 {
                   label: "Somente na Contabilidade",
-                  value: conciliacao.summary?.somente_contabilidade ?? 0,
+                  value: resultado.summary?.somente_contabilidade ?? 0,
                 },
               ].map(({ label, value }) => (
                 <Box
@@ -517,15 +517,27 @@ const ReconCiliacaoContabil = () => {
         <Button disabled={activeStep === 0} onClick={handleBack}>
           Voltar
         </Button>
-        <Button
-          variant="contained"
-          onClick={handleNext}
-          disabled={
-            activeStep === 1 && (!extratoBancario || !ficheiroContabilidade)
-          }
-        >
-          {activeStep === steps.length - 1 ? "Finalizar" : "Próximo"}
-        </Button>
+
+        {activeStep === steps.length - 1 ? (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => window.location.reload()}
+          >
+            Finalizar
+          </Button>
+        ) : (
+          <Button
+            variant="contained"
+            onClick={handleNext}
+            disabled={
+              activeStep === 1 && (!extratoBancario || !ficheiroContabilidade)
+            }
+          >
+            Próximo
+          </Button>
+        )}
+
       </Box>
     </Box>
   );

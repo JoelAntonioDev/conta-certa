@@ -44,23 +44,44 @@ class MovimentacaoBAI(Base):
     __tablename__ = "movimentacoes_bai"
 
     id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False)
+    execucao_id = Column(Integer, ForeignKey("execucoes_reconciliacao.id"), nullable=False)
+
     data_mov = Column(String(20))
     data_valor = Column(String(20))
     descritivo = Column(String(255))
-    debito = Column(String(50))
-    credito = Column(String(50))
-    saldo = Column(String(50))
+    debito = Column(Float)
+    credito = Column(Float)
+    saldo = Column(Float)
 
     criado_em = Column(DateTime(timezone=True), server_default=func.now())
 
 class MovimentacaoContabilidade(Base):
     __tablename__ = "movimentacoes_contabilidade"
-    
+
     id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"))
+    execucao_id = Column(Integer, ForeignKey("execucoes_reconciliacao.id"))
+
     data_mov = Column(String(40))
     data_valor = Column(String(40))
     numero_operacao = Column(String(40))
-    descritivo = Column(String(70))
+    descritivo = Column(String(255))
     debito = Column(Float)
     credito = Column(Float)
     saldo = Column(Float)
+
+    criado_em = Column(DateTime(timezone=True), server_default=func.now())
+
+class ExecucaoReconciliacao(Base):
+    __tablename__ = "execucoes_reconciliacao"
+
+    id = Column(Integer, primary_key=True, index=True)
+    criado_em = Column(DateTime(timezone=True), server_default=func.now())
+
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False)
+    empresa = relationship("Empresa")
+
+    # Exemplo: pode ter status ou observações
+    status = Column(String(20), default="finalizada")
+

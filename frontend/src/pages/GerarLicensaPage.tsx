@@ -53,10 +53,12 @@ const GerarLicencaPage = () => {
       );
 
       const licencaGerada = response.data;
-      const licencaJson = JSON.stringify(licencaGerada, null, 2);
-      setLicenca(licencaJson);
+      const licencaCompacta = JSON.stringify(licencaGerada);
+      console.log("Licença JSON compacta:", licencaCompacta);
 
-      const blob = new Blob([licencaJson], { type: "application/json" });
+      setLicenca(JSON.stringify(licencaGerada, null, 2)); // apenas para exibir bonito no <pre/>
+
+      const blob = new Blob([licencaCompacta], { type: "application/json" });
       const formData = new FormData();
       formData.append("file", blob, "licenca.lic");
 
@@ -71,8 +73,8 @@ const GerarLicencaPage = () => {
       console.error(err);
       setErro(
         err.response?.data?.erro ||
-          err.response?.data?.detail ||
-          "Erro ao gerar ou enviar licença"
+        err.response?.data?.detail ||
+        "Erro ao gerar ou enviar licença"
       );
     } finally {
       setLoading(false);
